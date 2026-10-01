@@ -1,0 +1,35 @@
+# requirements.txt
+# ─────────────────────────────────────────────
+# Librairies pour le Dashboard Web
+fastapi
+uvicorn
+websockets
+
+# Librairies OPTIONNELLES (le bot de base n'en a pas besoin)
+# Décommentez selon vos besoins
+
+# ── Données de marché ──────────────────────────────────────────────────
+# ccxt              # 400+ exchanges (Binance, Kraken, Coinbase…)
+# yfinance          # Données Yahoo Finance (actions, ETF)
+# alpaca-trade-api  # Broker US (actions, crypto)
+
+# ── Calcul technique ───────────────────────────────────────────────────
+# pandas            # Manipulation de séries temporelles
+# numpy             # Calculs numériques
+# pandas-ta         # 130+ indicateurs techniques
+
+# ── Visualisation ──────────────────────────────────────────────────────
+# matplotlib        # Graphiques statiques
+# plotly            # Graphiques interactifs
+
+# ── Notifications ──────────────────────────────────────────────────────
+# python-telegram-bot   # Alertes Telegram
+# discord-webhook       # Alertes Discord
+
+# ── Base de données ────────────────────────────────────────────────────
+# sqlalchemy        # ORM base de données
+# psycopg2          # PostgreSQL
+
+# ── Machine Learning (stratégies avancées) ─────────────────────────────
+# scikit-learn      # ML classique
+# xgboost           # Gradient Boosting

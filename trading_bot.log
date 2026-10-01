@@ -1,0 +1,8 @@
+2026-04-08 17:46:45,391 | INFO |    Capital: 10000.00 | Intervalle: 0s
+2026-04-08 17:46:45,400 | ERROR | Erreur: Invalid format specifier
+2026-04-08 18:27:45,944 | INFO |    Capital: 10000.00 | Intervalle: 60s
+2026-04-08 18:28:04,345 | INFO |    Capital: 10000.00 | Intervalle: 60s
+2026-04-08 18:39:29,627 | INFO |    Capital: 10000.00 | Intervalle: 60s
+2026-04-08 18:39:40,642 | INFO |    Capital: 10000.00 | Intervalle: 60s
+2026-04-08 19:38:52,105 | INFO |    Capital: 10000.00 | Intervalle: 0s
+2026-04-08 19:38:52,124 | ERROR | Erreur: Invalid format specifier

@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CryptoBot — Architecture & Trading</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #080c14;
+    --surface:  #0d1520;
+    --card:     #111d2e;
+    --border:   #1e3050;
+    --accent:   #00d084;
+    --accent2:  #0096ff;
+    --accent3:  #a855f7;
+    --gold:     #f59e0b;
+    --red:      #ff4d6d;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --glow:     0 0 40px rgba(0,208,132,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ── SLIDES CONTAINER ── */
+  .slides {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity .55s cubic-bezier(.4,0,.2,1), transform .55s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.prev {
+    opacity: 0;
+    transform: translateX(-60px);
+  }
+
+  /* ── NAV ── */
+  .nav {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+    background: rgba(13,21,32,.85);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    padding: 12px 24px;
+    border-radius: 50px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  .nav button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 20px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all .2s;
+  }
+  .nav button:hover { color: var(--accent); background: rgba(0,208,132,.08); }
+  .nav .dots { display:flex; gap:8px; }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: all .3s;
+  }
+  .dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
+  .slide-counter {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* ── PROGRESS BAR ── */
+  .progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .4s ease;
+    z-index: 200;
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  /* ── SHARED ELEMENTS ── */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: 5px 14px;
+    border-radius: 50px;
+    border: 1px solid;
+    margin-bottom: 20px;
+  }
+  .tag.green  { color: var(--accent);  border-color: rgba(0,208,132,.3);  background: rgba(0,208,132,.07);  }
+  .tag.blue   { color: var(--accent2); border-color: rgba(0,150,255,.3);   background: rgba(0,150,255,.07);  }
+  .tag.purple { color: var(--accent3); border-color: rgba(168,85,247,.3);  background: rgba(168,85,247,.07); }
+  .tag.gold   { color: var(--gold);    border-color: rgba(245,158,11,.3);  background: rgba(245,158,11,.07); }
+
+  h1.hero {
+    font-size: clamp(40px, 6vw, 76px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -.03em;
+    text-align: center;
+    max-width: 900px;
+  }
+  h2.section-title {
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 700px;
+    text-align: center;
+    line-height: 1.7;
+    margin-top: 12px;
+  }
+  .grad-text {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad-text2 {
+    background: linear-gradient(135deg, var(--accent2) 0%, var(--accent3) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .grad-text3 {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--red) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .card:hover {
+    border-color: rgba(0,208,132,.3);
+    box-shadow: var(--glow);
+  }
+  .card-grid { display:grid; gap:16px; width:100%; }
+  .card-grid.c2 { grid-template-columns: repeat(2,1fr); }
+  .card-grid.c3 { grid-template-columns: repeat(3,1fr); }
+  .card-grid.c4 { grid-template-columns: repeat(4,1fr); }
+  .card-icon { font-size: 28px; margin-bottom: 12px; }
+  .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .card p  { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* ── CODE BLOCK ── */
+  .code-wrap {
+    background: #060b10;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.9;
+    width: 100%;
+    max-width: 900px;
+  }
+  .code-header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .code-dot { width:11px;height:11px;border-radius:50%; }
+  .code-label { font-size:11px; color:var(--muted); margin-left:8px; font-family:'Inter',sans-serif; font-weight:500; }
+  pre { padding: 20px 24px; overflow-x: auto; }
+  .kw  { color: #c792ea; } /* keyword */
+  .fn  { color: #82aaff; } /* function */
+  .st  { color: #c3e88d; } /* string */
+  .cm  { color: #4a6277; font-style:italic; } /* comment */
+  .nb  { color: #f78c6c; } /* number */
+  .cl  { color: #ffcb6b; } /* class */
+  .op  { color: var(--accent); } /* operator / accent */
+
+  /* ── FLOW DIAGRAM ── */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+  .flow-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .flow-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 110px;
+    transition: border-color .3s, transform .3s;
+    cursor: default;
+  }
+  .flow-box:hover { border-color: var(--accent); transform: translateY(-4px); }
+  .flow-box .ico { font-size: 22px; }
+  .flow-box .lbl { font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 4px; }
+  .flow-box .sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .flow-arrow { font-size: 20px; color: var(--muted); margin: 0 4px; padding-bottom: 20px; }
+
+  /* ── BADGE ── */
+  .badge { 
+    display:inline-block; 
+    padding:3px 10px; 
+    border-radius:50px; 
+    font-size:11px; 
+    font-weight:600; 
+  }
+  .badge.buy  { background: rgba(0,208,132,.15); color:var(--accent); }
+  .badge.sell { background: rgba(255,77,109,.15); color:var(--red); }
+  .badge.hold { background: rgba(100,116,139,.15); color:var(--muted); }
+
+  /* ── CANDLE CHART ANIMATION ── */
+  .mini-chart { display:flex; align-items:flex-end; gap:4px; height:60px; }
+  .candle { width:12px; border-radius:2px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:.7} 50%{opacity:1} }
+
+  /* ── SLIDE 1: HERO ── */
+  #s1 { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,208,132,.08) 0%, transparent 70%); }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 100%;
+    max-width: 1100px;
+    margin-top: 40px;
+  }
+
+  /* ── SLIDE : TRADING CONCEPT ── */
+  .concept-row {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 1050px;
+  }
+  .concept-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px;
+  }
+  .concept-card h3 { font-size:14px; font-weight:700; margin-bottom:8px; display:flex;align-items:center;gap:8px; }
+  .concept-card p  { font-size:12.5px; color:var(--muted); line-height:1.7; }
+
+  /* price ticker */
+  .ticker { 
+    display:flex; align-items:center; gap:12px;
+    background:#060b10; border:1px solid var(--border);
+    border-radius:10px; padding:10px 16px; margin-top:10px; 
+  }
+  .ticker .sym { font-weight:700; font-size:14px; color:var(--accent2); }
+  .ticker .price { font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:600; }
+  .ticker .chg { font-size:12px; font-weight:600; }
+  .up { color:var(--accent); }
+  .dn { color:var(--red);    }
+
+  /* ── STRATEGY SLIDE ── */
+  .strat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; width:100%; max-width:1050px; }
+  .strat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  .strat-card .s-ico { font-size:28px; margin-bottom:10px; }
+  .strat-card h3 { font-size:13px; font-weight:700; margin-bottom:6px; }
+  .strat-card p  { font-size:11.5px; color:var(--muted); line-height:1.6; }
+  .strat-card .bar {
+    height:4px; border-radius:2px; margin-top:12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  /* ── RISK TABLE ── */
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:11px; color:var(--muted); font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:10px 16px; border-bottom:1px solid var(--border); }
+  td { padding:12px 16px; font-size:13px; border-bottom:1px solid rgba(30,48,80,.5); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(0,208,132,.03); }
+
+  /* ── ANIMATED BG PARTICLES ── */
+  .bg-particles {
+    position: fixed; inset:0; pointer-events:none; z-index:0;
+    overflow:hidden;
+  }
+  .particle {
+    position:absolute;
+    width:1px; height:1px;
+    background:var(--accent);
+    border-radius:50%;
+    animation: float linear infinite;
+    opacity:0;
+  }
+  @keyframes float {
+    0%   { transform:translateY(100vh) translateX(0); opacity:0; }
+    10%  { opacity:.4; }
+    90%  { opacity:.2; }
+    100% { transform:translateY(-20px) translateX(30px); opacity:0; }
+  }
+
+  /* keyboard hint */
+  .key-hint {
+    position:fixed; top:24px; right:24px;
+    font-size:11px; color:var(--muted);
+    display:flex; align-items:center; gap:6px;
+    background: rgba(13,21,32,.8);
+    border: 1px solid var(--border);
+    border-radius:8px; padding:6px 12px;
+    backdrop-filter:blur(8px);
+  }
+  kbd {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:4px; padding:2px 6px; font-family:inherit;
+    font-size:10px;
+  }
+
+  /* ── ARCHITECTURE SLIDE ── */
+  .arch-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    width: 100%;
+    max-width: 1050px;
+  }
+  .layer {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .layer-title { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; margin-bottom:12px; }
+  .file-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid rgba(30,48,80,.4); }
+  .file-row:last-child { border-bottom:none; }
+  .file-name { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent2); font-weight:600; }
+  .file-desc { font-size:11.5px; color:var(--muted); }
+
+  /* ── FINAL SLIDE ── */
+  #s9 { background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,150,255,.08) 0%, transparent 70%); }
+  .final-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; max-width:900px; width:100%; margin-top:32px; }
+  .final-card {
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:24px 20px; text-align:center;
+  }
+  .final-card .f-ico { font-size:32px; margin-bottom:12px; }
+  .final-card h3 { font-size:14px; font-weight:700; margin-bottom:6px; }
+  .final-card p  { font-size:12px; color:var(--muted); line-height:1.6; }
+  .cmd-box {
+    background:#060b10; border:1px solid var(--border); border-radius:10px;
+    padding:14px 20px; font-family:'JetBrains Mono',monospace; font-size:14px;
+    color:var(--accent); margin-top:12px; display:flex; align-items:center; gap:10px;
+  }
+  .prompt { color:var(--muted); }
+
+  /* ══════════════════════════════════════════
+     @media print — PDF Export
+     Une slide par page, fond sombre conservé
+  ══════════════════════════════════════════ */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    body {
+      overflow: visible !important;
+      height: auto !important;
+      width: auto !important;
+      background: var(--bg) !important;
+    }
+
+    /* Hide UI chrome */
+    .nav, .progress, .key-hint, .bg-particles { display: none !important; }
+
+    /* Slides container becomes normal flow */
+    .slides { position: static !important; height: auto !important; }
+
+    /* Every slide visible, full page */
+    .slide {
+      position: relative !important;
+      opacity: 1 !important;
+      transform: none !important;
+      pointer-events: auto !important;
+      display: flex !important;
+      width: 100vw;
+      min-height: 100vh;
+      page-break-after: always;
+      break-after: page;
+      box-sizing: border-box;
+      padding: 48px 56px;
+      background: var(--bg);
+    }
+    .slide:last-child { page-break-after: avoid; break-after: avoid; }
+
+    /* Gradient backgrounds on slides */
+    #s1 { background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,208,132,.12) 0%, #080c14 70%) !important; }
+    #s9 { background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,150,255,.12) 0%, #080c14 70%) !important; }
+
+    /* Ensure code blocks don't break across pages */
+    .code-wrap { break-inside: avoid; }
+
+    /* Scale down some grids slightly for A4 */
+    .strat-grid { grid-template-columns: repeat(4, 1fr) !important; }
+    .concept-row, .arch-layout { grid-template-columns: 1fr 1fr !important; }
+    .flow { gap: 0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Animated particles -->
+<div class="bg-particles" id="particles"></div>
+
+<div class="progress" id="progress"></div>
+
+<div class="key-hint">← → &nbsp;<kbd>←</kbd><kbd>→</kbd> pour naviguer</div>
+
+<div class="slides" id="slides">
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 1 — HERO
+  ═══════════════════════════════════════════════ -->
+  <div class="slide active" id="s1">
+    <span class="tag green">🤖 CryptoBot Python</span>
+    <h1 class="hero">Architecture &amp; <span class="grad-text">Trading</span><br/>Algorithmique</h1>
+    <p class="subtitle">Une présentation complète du bot de trading — des concepts fondamentaux du marché jusqu'à l'implémentation technique en Python &amp; FastAPI.</p>
+
+    <div class="hero-grid" style="margin-top:48px">
+      <div class="card" style="display:flex;flex-direction:column;gap:14px">
+        <div class="tag blue" style="width:fit-content">Concepts</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          ✦ Qu'est-ce que le trading ?<br/>
+          ✦ Marchés &amp; paires de cryptos<br/>
+          ✦ Indicateurs techniques<br/>
+          ✦ Gestion du risque
+        </div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:14px">
+        <div class="tag purple" style="width:fit-content">Architecture</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.8">
+          ✦ Structure des modules<br/>
+          ✦ Flux d'exécution d'un trade<br/>
+          ✦ Exemples de code réels<br/>
+          ✦ WebSocket &amp; Dashboard
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px;margin-top:36px">
+      <div class="mini-chart">
+        <div class="candle" style="height:20px;background:var(--red);animation-delay:.0s"></div>
+        <div class="candle" style="height:35px;background:var(--accent);animation-delay:.1s"></div>
+        <div class="candle" style="height:28px;background:var(--accent);animation-delay:.2s"></div>
+        <div class="candle" style="height:45px;background:var(--accent);animation-delay:.3s"></div>
+        <div class="candle" style="height:30px;background:var(--red);animation-delay:.4s"></div>
+        <div class="candle" style="height:50px;background:var(--accent);animation-delay:.5s"></div>
+        <div class="candle" style="height:40px;background:var(--accent);animation-delay:.6s"></div>
+        <div class="candle" style="height:55px;background:var(--accent);animation-delay:.7s"></div>
+      </div>
+      <span style="font-size:13px;color:var(--muted)">8 slides &nbsp;·&nbsp; Navigation par clavier ou boutons</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 2 — QU'EST-CE QUE LE TRADING ?
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s2">
+    <span class="tag green">📚 Concept #1</span>
+    <h2 class="section-title">Qu'est-ce que le <span class="grad-text">Trading</span> ?</h2>
+    <p class="subtitle" style="margin-bottom:28px">Acheter bas, vendre haut — et automatiser ce processus intelligemment.</p>
+
+    <div class="concept-row">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="concept-card">
+          <h3>📈 Principe fondamental</h3>
+          <p>Le trading consiste à <strong style="color:var(--text)">acheter un actif</strong> (BTC, action, devise) à un certain prix, puis à le <strong style="color:var(--text)">revendre plus cher</strong> pour réaliser un profit. Le profit s'appelle le <strong style="color:var(--accent)">PnL</strong> (Profit and Loss).</p>
+        </div>
+        <div class="concept-card">
+          <h3>💱 Une paire de trading</h3>
+          <p><code style="color:var(--accent2);background:#060b10;padding:2px 6px;border-radius:4px">BTC/USDT</code> signifie : combien de dollars (USDT) vaut 1 Bitcoin. On achète du BTC avec des USDT, et on revend du BTC pour récupérer des USDT en plus.</p>
+          <div class="ticker">
+            <span class="sym">BTC/USDT</span>
+            <span class="price">67 342<span style="font-size:12px;color:var(--muted)">.50</span></span>
+            <span class="chg up">▲ +2.34%</span>
+            <span class="price" style="margin-left:auto;opacity:.4;font-size:11px">ETH/USDT</span>
+            <span class="chg dn">▼ -0.87%</span>
+          </div>
+        </div>
+        <div class="concept-card">
+          <h3>🕯️ Une bougie (Candlestick)</h3>
+          <p>Chaque bougie représente l'évolution du prix sur une période.<br/>
+          <strong style="color:var(--accent)">O</strong>pen · <strong style="color:var(--gold)">H</strong>igh · <strong style="color:var(--red)">L</strong>ow · <strong style="color:var(--accent2)">C</strong>lose · <strong style="color:var(--accent3)">V</strong>olume</p>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px;color:var(--muted)">
+            { open: 67100, high: <span style="color:var(--gold)">67800</span>, low: <span style="color:var(--red)">66900</span>, close: <span style="color:var(--accent2)">67342</span> }
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="concept-card">
+          <h3>🔴🟢 Long vs Short</h3>
+          <p>
+            <span class="badge buy">LONG</span> &nbsp;= Acheter en espérant que le prix monte<br/><br/>
+            <span class="badge sell">SHORT</span> = Parier que le prix va baisser (vendre ce qu'on n'a pas encore)<br/><br/>
+            <span style="color:var(--muted);font-size:11.5px">Notre bot utilise uniquement des positions <strong style="color:var(--accent)">LONG</strong> pour rester simple et sûr.</span>
+          </p>
+        </div>
+        <div class="concept-card">
+          <h3>⚡ Trading Manuel vs Algorithmique</h3>
+          <p>
+            <strong style="color:var(--text)">Manuel :</strong> Un humain surveille les écrans et clique pour acheter/vendre.<br/><br/>
+            <strong style="color:var(--accent)">Algorithmique :</strong> Un programme analyse les données en continu, sans émotion, 24h/24 — c'est ce que fait notre bot.
+          </p>
+        </div>
+        <div class="concept-card">
+          <h3>📊 Volume</h3>
+          <p>Le volume indique combien de BTC ont été échangés sur la période. Un <strong style="color:var(--text)">fort volume</strong> confirme un mouvement de prix. Un faible volume peut signifier un faux signal.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 3 — INDICATEURS TECHNIQUES
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s3">
+    <span class="tag blue">📊 Concept #2</span>
+    <h2 class="section-title">Les <span class="grad-text2">Indicateurs Techniques</span></h2>
+    <p class="subtitle" style="margin-bottom:28px">Des formules mathématiques qui transforment les prix bruts en signaux exploitables.</p>
+    <div class="card-grid c4" style="max-width:1050px;width:100%">
+      <div class="card">
+        <div class="card-icon">〰️</div>
+        <h3 style="color:var(--accent)">SMA / EMA</h3>
+        <p>Moyenne mobile. Lisse les prix pour détecter une <strong style="color:var(--text)">tendance</strong>. Quand la MA rapide croise la MA lente → signal BUY ou SELL.</p>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);margin-top:10px;background:#060b10;padding:8px;border-radius:6px">
+          SMA(10) &gt; SMA(30)<br/><span style="color:var(--accent)">→ TENDANCE HAUSSIÈRE</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📉</div>
+        <h3 style="color:var(--accent2)">RSI</h3>
+        <p>Relative Strength Index (0–100). Mesure si le marché est en <strong style="color:var(--accent)">survente</strong> (RSI &lt; 30) ou <strong style="color:var(--red)">surachat</strong> (RSI &gt; 70).</p>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:10px;background:#060b10;padding:8px;border-radius:6px">
+          RSI = <span style="color:var(--accent)">28</span> → BUY<br/>
+          RSI = <span style="color:var(--red)">74</span> → SELL
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🌊</div>
+        <h3 style="color:var(--accent3)">MACD</h3>
+        <p>Mesure la <strong style="color:var(--text)">dynamique</strong> de tendance. Croisement de deux EMA. Quand MACD passe au-dessus de sa ligne signal → BUY.</p>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:10px;background:#060b10;padding:8px;border-radius:6px">
+          MACD(12,26,9)<br/><span style="color:var(--accent3)">→ Momentum</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📦</div>
+        <h3 style="color:var(--gold)">Bollinger / ATR</h3>
+        <p><strong style="color:var(--text)">Bollinger :</strong> Bandes autour du prix. Retour à la moyenne. <strong style="color:var(--text)">ATR :</strong> Volatilité — utilisé pour calculer notre stop-loss.</p>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:10px;background:#060b10;padding:8px;border-radius:6px">
+          SL = prix - 2×ATR<br/><span style="color:var(--gold)">→ Adaptatif</span>
+        </div>
+      </div>
+    </div>
+    <div class="code-wrap" style="margin-top:20px;max-width:1050px">
+      <div class="code-header">
+        <div class="code-dot" style="background:#ff5f57"></div>
+        <div class="code-dot" style="background:#febc2e"></div>
+        <div class="code-dot" style="background:#28c840"></div>
+        <span class="code-label">core/indicators.py — Calcul des indicateurs sur les bougies</span>
+      </div>
+      <pre><span class="kw">class</span> <span class="cl">Indicators</span>:
+    <span class="kw">@staticmethod</span>
+    <span class="kw">def</span> <span class="fn">sma</span>(candles, period) <span class="op">-&gt;</span> float:
+        closes <span class="op">=</span> [c[<span class="st">"close"</span>] <span class="kw">for</span> c <span class="kw">in</span> candles[<span class="op">-</span>period:]]
+        <span class="kw">return</span> sum(closes) / period   <span class="cm"># Moyenne simple des N derniers prix de clôture</span>
+
+    <span class="kw">@staticmethod</span>
+    <span class="kw">def</span> <span class="fn">atr</span>(candles, period<span class="op">=14</span>) <span class="op">-&gt;</span> float:
+        trs <span class="op">=</span> [max(c[<span class="st">"high"</span>]<span class="op">-</span>c[<span class="st">"low"</span>], abs(c[<span class="st">"high"</span>]<span class="op">-</span>prev[<span class="st">"close"</span>]), ...) <span class="kw">for</span> ...]
+        <span class="kw">return</span> sum(trs) / period       <span class="cm"># Volatilité moyenne → sert à calculer le Stop-Loss</span></pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 4 — GESTION DU RISQUE
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s4">
+    <span class="tag gold">🛡️ Concept #3</span>
+    <h2 class="section-title">Gestion du <span class="grad-text3">Risque</span></h2>
+    <p class="subtitle" style="margin-bottom:28px">La règle d'or : protéger le capital AVANT de chercher des profits.</p>
+
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:24px;max-width:1050px;width:100%">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3 style="margin-bottom:12px">🎯 Les 3 piliers du RiskManager</h3>
+          <div class="card-wrap">
+            <table>
+              <tr><th>Paramètre</th><th>Valeur</th><th>Rôle</th></tr>
+              <tr><td>Stop-Loss (SL)</td><td><code style="color:var(--red)">prix − 2×ATR</code></td><td style="color:var(--muted);font-size:11.5px">Coupe la perte automatiquement</td></tr>
+              <tr><td>Take-Profit (TP)</td><td><code style="color:var(--accent)">prix + 4×ATR</code></td><td style="color:var(--muted);font-size:11.5px">Verrouille le profit (RR 2:1)</td></tr>
+              <tr><td>Position Size</td><td><code style="color:var(--accent2)">1% capital</code></td><td style="color:var(--muted);font-size:11.5px">Taille calculée pour risquer 1%</td></tr>
+              <tr><td>Max Drawdown</td><td><code style="color:var(--gold)">15%</code></td><td style="color:var(--muted);font-size:11.5px">Coupe tout si perte globale &gt; 15%</td></tr>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:10px">📐 Exemple concret</h3>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;background:#060b10;padding:14px;border-radius:8px">
+            Capital   = <span style="color:var(--accent2)">10 000$</span><br/>
+            Prix BTC  = <span style="color:var(--text)">67 300$</span><br/>
+            ATR       = <span style="color:var(--gold)">150$</span><br/>
+            <span style="color:var(--muted)">───────────────────</span><br/>
+            Stop-Loss = 67300 - 2×150 = <span style="color:var(--red)">67 000$</span><br/>
+            Take-Profit = 67300 + 4×150 = <span style="color:var(--accent)">67 900$</span><br/>
+            Risque 1%  = 100$ / 300$ = <span style="color:var(--accent3)">0.333 BTC</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="code-wrap" style="max-width:100%">
+          <div class="code-header">
+            <div class="code-dot" style="background:#ff5f57"></div>
+            <div class="code-dot" style="background:#febc2e"></div>
+            <div class="code-dot" style="background:#28c840"></div>
+            <span class="code-label">core/portfolio.py — RiskManager</span>
+          </div>
+          <pre><span class="kw">class</span> <span class="cl">RiskManager</span>:
+  <span class="kw">def</span> <span class="fn">stop_loss</span>(self, entry, atr, side):
+      <span class="cm"># Stop 2× la volatilité sous l'entrée</span>
+      <span class="kw">return</span> entry <span class="op">-</span> <span class="nb">2.0</span> <span class="op">*</span> atr   <span class="cm"># ex: 67300 - 300 = 67000</span>
+
+  <span class="kw">def</span> <span class="fn">take_profit</span>(self, entry, stop, rr<span class="op">=2.0</span>):
+      distance <span class="op">=</span> abs(entry <span class="op">-</span> stop)
+      <span class="kw">return</span> entry <span class="op">+</span> rr <span class="op">*</span> distance  <span class="cm"># Profit = 2× le risque</span>
+
+  <span class="kw">def</span> <span class="fn">position_size</span>(self, capital, entry, stop):
+      risk_$    <span class="op">=</span> capital <span class="op">*</span> <span class="nb">0.01</span>   <span class="cm"># 1% de 10000 = 100$</span>
+      distance  <span class="op">=</span> abs(entry <span class="op">-</span> stop)
+      <span class="kw">return</span> risk_$ <span class="op">/</span> distance       <span class="cm"># 100/300 = 0.33 BTC</span>
+
+  <span class="kw">def</span> <span class="fn">check_drawdown</span>(self, equity):
+      dd <span class="op">=</span> (self.peak <span class="op">-</span> equity) <span class="op">/</span> self.peak <span class="op">*</span> <span class="nb">100</span>
+      <span class="kw">return</span> dd <span class="op">&lt;</span> <span class="nb">15.0</span>   <span class="cm"># Arrêt si perte totale &gt; 15%</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 5 — STRATÉGIES
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s5">
+    <span class="tag purple">🧠 Concept #4</span>
+    <h2 class="section-title">Les <span class="grad-text2">Stratégies</span> de Trading</h2>
+    <p class="subtitle" style="margin-bottom:28px">4 stratégies + 1 vote par ensemble + 1 modèle IA.</p>
+    <div class="strat-grid">
+      <div class="strat-card">
+        <div class="s-ico">〰️</div>
+        <h3>SMA Crossover</h3>
+        <p>Quand la MA rapide (10) dépasse la MA lente (30) → BUY. Signal de tendance.</p>
+        <div class="bar" style="background:linear-gradient(90deg,var(--accent),#00a86b)"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Marché : <span style="color:var(--accent)">Tendance forte</span></div>
+      </div>
+      <div class="strat-card">
+        <div class="s-ico">📉</div>
+        <h3>RSI Mean Reversion</h3>
+        <p>Achat en zone de survente (RSI &lt; 30), vente en surachat (RSI &gt; 70).</p>
+        <div class="bar" style="background:linear-gradient(90deg,var(--accent2),#0060aa)"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Marché : <span style="color:var(--accent2)">Range / Latéral</span></div>
+      </div>
+      <div class="strat-card">
+        <div class="s-ico">🌊</div>
+        <h3>MACD Crossover</h3>
+        <p>Croisement de la ligne MACD au-dessus de sa ligne signal → momentum haussier.</p>
+        <div class="bar" style="background:linear-gradient(90deg,var(--accent3),#7c3aed)"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Marché : <span style="color:var(--accent3)">Tendance modérée</span></div>
+      </div>
+      <div class="strat-card">
+        <div class="s-ico">📦</div>
+        <h3>Bollinger Bands</h3>
+        <p>Achat quand le prix sort sous la bande basse, vente au-dessus de la bande haute.</p>
+        <div class="bar" style="background:linear-gradient(90deg,var(--gold),#d97706)"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">Marché : <span style="color:var(--gold)">Range / Volatile</span></div>
+      </div>
+    </div>
+
+    <div class="code-wrap" style="margin-top:20px;max-width:1050px">
+      <div class="code-header">
+        <div class="code-dot" style="background:#ff5f57"></div>
+        <div class="code-dot" style="background:#febc2e"></div>
+        <div class="code-dot" style="background:#28c840"></div>
+        <span class="code-label">core/strategies.py — EnsembleStrategy (vote majoritaire)</span>
+      </div>
+      <pre><span class="kw">class</span> <span class="cl">EnsembleStrategy</span>:
+  strategies <span class="op">=</span> [SMACrossover(), RSIStrategy(), MACDStrategy(), BollingerStrategy()]
+
+  <span class="kw">def</span> <span class="fn">generate</span>(self, data) <span class="op">-&gt;</span> Signal:
+      votes <span class="op">=</span> [s.generate(data) <span class="kw">for</span> s <span class="kw">in</span> self.strategies]
+      <span class="cm"># Ex: [BUY, BUY, HOLD, BUY] → 3 BUY sur 4 → Signal final = BUY</span>
+      buys <span class="op">=</span> votes.count(Signal.BUY)
+      <span class="kw">return</span> Signal.BUY <span class="kw">if</span> buys <span class="op">&gt;=</span> <span class="nb">2</span> <span class="kw">else</span> (Signal.SELL <span class="kw">if</span> votes.count(Signal.SELL) <span class="op">&gt;=</span> <span class="nb">2</span> <span class="kw">else</span> Signal.HOLD)</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 6 — ARCHITECTURE GÉNÉRALE
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s6">
+    <span class="tag blue">🏗️ Architecture</span>
+    <h2 class="section-title">Structure des <span class="grad-text">Modules</span></h2>
+    <p class="subtitle" style="margin-bottom:28px">9 modules Python organisés en couches logiques.</p>
+
+    <div class="arch-layout">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="layer">
+          <div class="layer-title" style="color:var(--accent)">🌐 Couche Présentation</div>
+          <div class="file-row"><span style="font-size:18px">⚡</span><div><div class="file-name">web_app.py</div><div class="file-desc">Serveur FastAPI + WebSocket → Dashboard navigateur</div></div></div>
+          <div class="file-row"><span style="font-size:18px">🎨</span><div><div class="file-name">static/index.html</div><div class="file-desc">Interface utilisateur (graphiques, contrôles)</div></div></div>
+        </div>
+        <div class="layer">
+          <div class="layer-title" style="color:var(--accent2)">🤖 Couche Bot (Chef d'orchestre)</div>
+          <div class="file-row"><span style="font-size:18px">🤖</span><div><div class="file-name">core/bot.py</div><div class="file-desc">TradingBot — coordonne tout, gère le tick</div></div></div>
+          <div class="file-row"><span style="font-size:18px">📡</span><div><div class="file-name">core/data.py</div><div class="file-desc">MarketData — génère/récupère les bougies OHLCV</div></div></div>
+        </div>
+        <div class="layer">
+          <div class="layer-title" style="color:var(--accent3)">⚙️ Configuration</div>
+          <div class="file-row"><span style="font-size:18px">🔧</span><div><div class="file-name">config.py</div><div class="file-desc">Tous les paramètres centralisés (symbol, capital, risk...)</div></div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="layer">
+          <div class="layer-title" style="color:var(--gold)">📊 Couche Analyse</div>
+          <div class="file-row"><span style="font-size:18px">📈</span><div><div class="file-name">core/indicators.py</div><div class="file-desc">SMA, EMA, RSI, MACD, Bollinger, ATR</div></div></div>
+          <div class="file-row"><span style="font-size:18px">🧠</span><div><div class="file-name">core/strategies.py</div><div class="file-desc">Génération des signaux BUY / SELL / HOLD</div></div></div>
+          <div class="file-row"><span style="font-size:18px">🤖</span><div><div class="file-name">core/ai_model.py</div><div class="file-desc">Stratégie Machine Learning (sklearn)</div></div></div>
+        </div>
+        <div class="layer">
+          <div class="layer-title" style="color:var(--red)">💼 Couche Exécution</div>
+          <div class="file-row"><span style="font-size:18px">💰</span><div><div class="file-name">core/portfolio.py</div><div class="file-desc">Portfolio, Position, RiskManager, Backtester</div></div></div>
+          <div class="file-row"><span style="font-size:18px">🏦</span><div><div class="file-name">core/exchange.py</div><div class="file-desc">ExchangeManager — ordres réels via CCXT/Bybit</div></div></div>
+          <div class="file-row"><span style="font-size:18px">🔔</span><div><div class="file-name">core/notifications.py</div><div class="file-desc">NotificationManager — alertes Discord webhook</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 7 — FLUX D'UN TRADE
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s7">
+    <span class="tag green">🔄 Flux</span>
+    <h2 class="section-title">Cycle de vie d'un <span class="grad-text">Trade</span></h2>
+    <p class="subtitle" style="margin-bottom:28px">De la bougie brute jusqu'à l'alerte Discord — en une itération.</p>
+
+    <div class="flow" style="margin-bottom:24px">
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">📡</div>
+          <div class="lbl">data.py</div>
+          <div class="sub">fetch_candle()</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">📐</div>
+          <div class="lbl">indicators.py</div>
+          <div class="sub">atr() / sma()</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">🧠</div>
+          <div class="lbl">strategies.py</div>
+          <div class="sub">generate() → BUY</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">🛡️</div>
+          <div class="lbl">portfolio.py</div>
+          <div class="sub">stop_loss / qty</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box" style="border-color:rgba(0,208,132,.4)">
+          <div class="ico">💰</div>
+          <div class="lbl" style="color:var(--accent)">Position ouverte</div>
+          <div class="sub">cash déduit</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">🏦</div>
+          <div class="lbl">exchange.py</div>
+          <div class="sub">market_order()</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">🔔</div>
+          <div class="lbl">notifications.py</div>
+          <div class="sub">Discord alert</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-item">
+        <div class="flow-box">
+          <div class="ico">🌐</div>
+          <div class="lbl">web_app.py</div>
+          <div class="sub">WS broadcast</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-wrap" style="max-width:1050px">
+      <div class="code-header">
+        <div class="code-dot" style="background:#ff5f57"></div>
+        <div class="code-dot" style="background:#febc2e"></div>
+        <div class="code-dot" style="background:#28c840"></div>
+        <span class="code-label">core/bot.py — méthode tick() : une itération complète</span>
+      </div>
+      <pre><span class="kw">def</span> <span class="fn">tick</span>(self) <span class="op">-&gt;</span> dict:
+    candle <span class="op">=</span> self.data.<span class="fn">fetch_candle</span>()          <span class="cm"># 1. Bougie OHLCV</span>
+    price  <span class="op">=</span> candle[<span class="st">"close"</span>]                    <span class="cm"># 2. Prix de clôture</span>
+    
+    self.<span class="fn">_check_exits</span>(price)                   <span class="cm"># 3. Vérif SL / TP de la position ouverte</span>
+    
+    signal <span class="op">=</span> self.strategy.<span class="fn">generate</span>(self.data) <span class="cm"># 4. Stratégie → BUY / SELL / HOLD</span>
+    <span class="kw">if</span> signal <span class="op">!=</span> Signal.HOLD:
+        self.<span class="fn">_execute_signal</span>(signal, price)    <span class="cm"># 5. Calcul risque + ouverture position</span>
+    
+    <span class="cm"># 6. Envoi de l'état au dashboard via WebSocket (web_app.py)</span>
+    <span class="kw">if</span> self.on_candle_cb: self.<span class="fn">on_candle_cb</span>(state)
+    
+    <span class="kw">return</span> candle</pre>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 8 — WEBSOCKET & DASHBOARD
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s8">
+    <span class="tag blue">🌐 Interface</span>
+    <h2 class="section-title">WebSocket &amp; <span class="grad-text2">Dashboard</span></h2>
+    <p class="subtitle" style="margin-bottom:28px">Communication temps réel entre le bot Python et le navigateur.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1050px;width:100%">
+      <div class="code-wrap" style="max-width:100%">
+        <div class="code-header">
+          <div class="code-dot" style="background:#ff5f57"></div>
+          <div class="code-dot" style="background:#febc2e"></div>
+          <div class="code-dot" style="background:#28c840"></div>
+          <span class="code-label">web_app.py — Boucle async + broadcast</span>
+        </div>
+        <pre><span class="cm"># Tâche de fond qui tourne en permanence</span>
+<span class="kw">async def</span> <span class="fn">run_bot_loop</span>():
+    <span class="kw">while</span> True:
+        <span class="kw">if</span> bot.running:
+            candle <span class="op">=</span> bot.<span class="fn">tick</span>()       <span class="cm"># avance le bot</span>
+            state  <span class="op">=</span> {
+                <span class="st">"type"</span>: <span class="st">"update"</span>,
+                <span class="st">"candle"</span>: candle,
+                <span class="st">"portfolio"</span>: bot.portfolio.<span class="fn">stats</span>()
+            }
+            <span class="kw">await</span> manager.<span class="fn">broadcast</span>(state) <span class="cm"># → tous les browsers</span>
+        <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="nb">1</span>)
+
+<span class="cm"># Commandes reçues depuis le dashboard</span>
+<span class="kw">if</span>   msg[<span class="st">"command"</span>] <span class="op">==</span> <span class="st">"start"</span>:   bot.running <span class="op">=</span> True
+<span class="kw">elif</span> msg[<span class="st">"command"</span>] <span class="op">==</span> <span class="st">"stop"</span>:    bot.running <span class="op">=</span> False
+<span class="kw">elif</span> msg[<span class="st">"command"</span>] <span class="op">==</span> <span class="st">"set_strategy"</span>: ...
+<span class="kw">elif</span> msg[<span class="st">"command"</span>] <span class="op">==</span> <span class="st">"run_backtest"</span>: ...</pre>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="card">
+          <h3 style="margin-bottom:10px">📡 Commandes disponibles depuis l'UI</h3>
+          <table>
+            <tr><th>Commande</th><th>Action</th></tr>
+            <tr><td><code style="color:var(--accent)">start</code></td><td style="color:var(--muted);font-size:12px">Démarre le bot</td></tr>
+            <tr><td><code style="color:var(--red)">stop</code></td><td style="color:var(--muted);font-size:12px">Arrête le bot</td></tr>
+            <tr><td><code style="color:var(--accent2)">set_strategy</code></td><td style="color:var(--muted);font-size:12px">Change la stratégie</td></tr>
+            <tr><td><code style="color:var(--accent3)">manual_trade</code></td><td style="color:var(--muted);font-size:12px">Trade manuel</td></tr>
+            <tr><td><code style="color:var(--gold)">run_backtest</code></td><td style="color:var(--muted);font-size:12px">Lance le backtest</td></tr>
+            <tr><td><code style="color:var(--muted)">update_settings</code></td><td style="color:var(--muted);font-size:12px">API key, Discord, Risk</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>🔔 Pattern Singleton</h3>
+          <p>Les modules <code style="color:var(--accent);background:#060b10;padding:2px 6px;border-radius:4px">exchange_client</code> et <code style="color:var(--accent3);background:#060b10;padding:2px 6px;border-radius:4px">notifier</code> sont des <strong style="color:var(--text)">singletons</strong> — une seule instance partagée dans tout le projet, configurée une fois depuis les settings du dashboard, accessible partout.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 9 — CONCLUSION
+  ═══════════════════════════════════════════════ -->
+  <div class="slide" id="s9">
+    <span class="tag green">🚀 Lancement</span>
+    <h2 class="section-title">Prêt à <span class="grad-text">trader</span> ?</h2>
+    <p class="subtitle">Tout ce qu'il faut pour démarrer le projet en local.</p>
+
+    <div class="final-grid">
+      <div class="final-card">
+        <div class="f-ico">📦</div>
+        <h3>1. Installer</h3>
+        <p>Installer les dépendances Python</p>
+        <div class="cmd-box"><span class="prompt">$</span> pip install -r requirements.txt</div>
+      </div>
+      <div class="final-card">
+        <div class="f-ico">🌐</div>
+        <h3>2. Lancer le dashboard</h3>
+        <p>Serveur web + bot temps réel</p>
+        <div class="cmd-box"><span class="prompt">$</span> python web_app.py</div>
+      </div>
+      <div class="final-card">
+        <div class="f-ico">🖥️</div>
+        <h3>3. Ouvrir</h3>
+        <p>Dashboard dans le navigateur</p>
+        <div class="cmd-box" style="color:var(--accent2)">localhost:8000</div>
+      </div>
+    </div>
+
+    <div class="card" style="max-width:700px;width:100%;margin-top:24px">
+      <h3 style="margin-bottom:12px;text-align:center">🗂️ Résumé de l'architecture</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">
+        <span style="background:rgba(0,208,132,.1);color:var(--accent);border:1px solid rgba(0,208,132,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">📡 data.py</span>
+        <span style="color:var(--muted);align-self:center">→</span>
+        <span style="background:rgba(0,150,255,.1);color:var(--accent2);border:1px solid rgba(0,150,255,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">📐 indicators.py</span>
+        <span style="color:var(--muted);align-self:center">→</span>
+        <span style="background:rgba(168,85,247,.1);color:var(--accent3);border:1px solid rgba(168,85,247,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">🧠 strategies.py</span>
+        <span style="color:var(--muted);align-self:center">→</span>
+        <span style="background:rgba(245,158,11,.1);color:var(--gold);border:1px solid rgba(245,158,11,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">🛡️ portfolio.py</span>
+        <span style="color:var(--muted);align-self:center">→</span>
+        <span style="background:rgba(255,77,109,.1);color:var(--red);border:1px solid rgba(255,77,109,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">🏦 exchange.py</span>
+        <span style="color:var(--muted);align-self:center">→</span>
+        <span style="background:rgba(0,208,132,.1);color:var(--accent);border:1px solid rgba(0,208,132,.3);padding:5px 12px;border-radius:50px;font-size:12px;font-weight:600">🌐 web_app.py</span>
+      </div>
+    </div>
+
+    <p style="color:var(--muted);font-size:12px;margin-top:20px">⚠️ Bot éducatif — Ne pas utiliser avec de l'argent réel sans tests approfondis.</p>
+  </div>
+
+</div><!-- /slides -->
+
+<!-- Navigation -->
+<div class="nav">
+  <button id="prevBtn" onclick="prevSlide()" title="Précédent">←</button>
+  <div class="dots" id="dots"></div>
+  <button id="nextBtn" onclick="nextSlide()" title="Suivant">→</button>
+  <span class="slide-counter" id="counter">1 / 9</span>
+</div>
+
+<script>
+const TOTAL = 9;
+let current = 0;
+
+const slides  = document.querySelectorAll('.slide');
+const progress = document.getElementById('progress');
+const counter  = document.getElementById('counter');
+const dotsEl   = document.getElementById('dots');
+
+// Build dots
+for (let i = 0; i < TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i===0?' active':'');
+  d.onclick = () => goTo(i);
+  dotsEl.appendChild(d);
+}
+
+function goTo(n) {
+  slides[current].classList.remove('active');
+  slides[current].classList.add('prev');
+  setTimeout(() => slides[current < n ? current : n].classList.remove('prev'), 600);
+  
+  const prev = current;
+  current = Math.max(0, Math.min(TOTAL-1, n));
+  
+  slides[current].classList.add('active');
+  slides[prev].classList.remove('active');
+
+  const dots = dotsEl.querySelectorAll('.dot');
+  dots.forEach((d,i) => d.classList.toggle('active', i===current));
+  counter.textContent = `${current+1} / ${TOTAL}`;
+  progress.style.width = `${((current+1)/TOTAL)*100}%`;
+}
+
+function nextSlide() { goTo(current+1); }
+function prevSlide()  { goTo(current-1); }
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+  if (e.key === 'ArrowLeft')  prevSlide();
+});
+
+// Initial progress
+progress.style.width = `${(1/TOTAL)*100}%`;
+
+// Particles
+const container = document.getElementById('particles');
+for (let i = 0; i < 25; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random()*100 + '%';
+  p.style.width = p.style.height = (Math.random()*2+1) + 'px';
+  p.style.animationDuration = (Math.random()*15+10) + 's';
+  p.style.animationDelay    = (Math.random()*15) + 's';
+  container.appendChild(p);
+}
+
+// Touch support
+let startX = 0;
+document.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - startX;
+  if (dx < -50) nextSlide();
+  if (dx >  50) prevSlide();
+});
+</script>
+</body>
+</html>

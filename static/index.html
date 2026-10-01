@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoBot Pro</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="static/css/style.css?v=5">
+</head>
+<body>
+    <div class="dashboard-layout">
+        
+        <!-- Sidebar Navigation / Controls -->
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i data-lucide="hexagon" class="logo-icon"></i>
+                <h1>CryptoBot</h1>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-target="view-dashboard">
+                    <i data-lucide="layout-dashboard"></i> Dashboard
+                </button>
+                <button class="nav-item" data-target="view-history">
+                    <i data-lucide="history"></i> Historique
+                </button>
+                <button class="nav-item" data-target="view-settings">
+                    <i data-lucide="settings"></i> Paramètres
+                </button>
+                <button class="nav-item" data-target="view-backtest">
+                    <i data-lucide="flask-conical"></i> Laboratoire
+                </button>
+            </nav>
+
+            <div class="bot-controls glass-panel-inner">
+                <div class="status-header">
+                    <h3>Contrôle du Bot</h3>
+                    <div class="status-indicator">
+                        <span class="pulse-dot" id="status-dot"></span>
+                        <span id="status-text">Arrêté</span>
+                    </div>
+                </div>
+                
+                <div class="btn-group">
+                    <button id="btn-start" class="btn primary flex-btn"><i data-lucide="play"></i> Démarrer</button>
+                    <button id="btn-stop" class="btn secondary outline flex-btn"><i data-lucide="square"></i> Arrêt</button>
+                </div>
+                
+                <div class="strategy-selector mt-16">
+                    <label>Stratégie Active</label>
+                    <div class="select-wrapper">
+                        <select id="strategy-select" class="custom-input">
+                            <option value="aggressive">SMA Crossover (Agressif)</option>
+                            <option value="moderate">SMA Crossover (Modéré)</option>
+                            <option value="ensemble">Ensemble (Avis Multiple)</option>
+                            <option value="ai">🤖 Intelligence Artificielle (ML)</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="select-icon"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="portfolio-summary mt-auto">
+                <h2>Aperçu Réel</h2>
+                <div class="stat-card">
+                    <div class="stat-info">
+                        <div class="stat-label">Capital Dédié</div>
+                        <div class="stat-value" id="val-cash">$10,000.00</div>
+                    </div>
+                    <div class="stat-icon"><i data-lucide="wallet"></i></div>
+                </div>
+                <div class="stat-card highlight glow">
+                    <div class="stat-info">
+                        <div class="stat-label">Équité Totale</div>
+                        <div class="stat-value text-accent" id="val-equity">$10,000.00</div>
+                    </div>
+                    <div class="stat-icon text-accent"><i data-lucide="trending-up"></i></div>
+                </div>
+                <div class="grid-2-col">
+                    <div class="stat-card compact">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value" id="val-winrate">0.0%</div>
+                    </div>
+                    <div class="stat-card compact">
+                        <div class="stat-label">Profit Fact.</div>
+                        <div class="stat-value" id="val-profitfactor">0.00</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- View: Dashboard -->
+            <div id="view-dashboard" class="view-section active">
+                <!-- Topbar -->
+                <header class="topbar glass-panel">
+                    <div class="pair-info">
+                        <div class="pair-icon"><i data-lucide="bitcoin"></i></div>
+                        <div>
+                            <h2>BTC / USDT</h2>
+                            <div class="top-status">Binance Futures • <span id="strategy-badge" class="text-accent">Stratégie: Ensemble</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="price-display">
+                        <span class="price-label">Prix Actuel</span>
+                        <span class="current-price" id="current-price">--</span>
+                    </div>
+
+                    <div class="quick-trade">
+                        <button class="btn action-buy"><i data-lucide="arrow-up-circle"></i> Long</button>
+                        <button class="btn action-sell"><i data-lucide="arrow-down-circle"></i> Short</button>
+                    </div>
+                </header>
+
+                <!-- Charting Area -->
+                <section class="chart-container glass-panel">
+                    <div id="tvchart" class="chart-block main-chart"></div>
+                    <div id="equitychart" class="chart-block side-chart"></div>
+                </section>
+
+                <!-- Bottom Area (Positions) -->
+                <section class="bottom-area glass-panel">
+                    <div class="section-header">
+                        <h3><i data-lucide="list"></i> Positions Ouvertes</h3>
+                        <button class="btn-text text-accent">Fermer tout <i data-lucide="x"></i></button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbole</th>
+                                    <th>Side</th>
+                                    <th>Qté</th>
+                                    <th>Prix Entrée</th>
+                                    <th>Stop L.</th>
+                                    <th>Take P.</th>
+                                    <th>PnL</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-tbody">
+                                <tr>
+                                    <td colspan="8" class="empty-state">
+                                        <i data-lucide="inbox"></i>
+                                        <p>Aucune position active pour le moment.</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View: History -->
+            <div id="view-history" class="view-section">
+                <header class="page-header glass-panel">
+                    <h2><i data-lucide="history" class="mr-2"></i> Historique des Trades</h2>
+                    <p class="text-muted">Consultez tous les trades clôturés et leur performance.</p>
+                </header>
+                
+                <section class="history-content glass-panel mt-24">
+                    <div class="table-container full-height">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Paire</th>
+                                    <th>Type</th>
+                                    <th>Prix Entrée</th>
+                                    <th>Prix Sortie</th>
+                                    <th>Raison</th>
+                                    <th>PnL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr>
+                                    <td colspan="7" class="empty-state">
+                                        <i data-lucide="files"></i>
+                                        <p>Aucun historique disponible. Le bot n'a pas encore fermé de positions.</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View: Settings -->
+            <div id="view-settings" class="view-section">
+                <header class="page-header glass-panel">
+                    <h2><i data-lucide="settings" class="mr-2"></i> Paramètres du Bot</h2>
+                    <p class="text-muted">Ajustez la configuration de votre instance de trading.</p>
+                </header>
+                
+                <section class="settings-content grid-2-col mt-24">
+                    <div class="settings-card glass-panel">
+                        <h3><i data-lucide="shield"></i> Gestion du Risque</h3>
+                        
+                        <div class="form-group">
+                            <label>Levier (Leverage)</label>
+                            <input type="number" id="setting-leverage" value="10" min="1" max="100" class="custom-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Risque par Trade (%)</label>
+                            <input type="number" id="setting-risk" value="1" min="0.1" step="0.1" class="custom-input">
+                        </div>
+                        
+                        <button id="btn-save-settings" class="btn primary mt-16 w-100">Sauvegarder Configuration</button>
+                    </div>
+
+                    <div class="settings-card glass-panel">
+                        <h3><i data-lucide="key"></i> Connexion API & Alertes</h3>
+                        
+                        <div class="form-group">
+                            <label>API Key (Testnet)</label>
+                            <input type="password" id="setting-api-key" placeholder="Votre clé Binance/Bybit..." class="custom-input">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>API Secret</label>
+                            <input type="password" id="setting-api-secret" placeholder="Votre secret..." class="custom-input">
+                        </div>
+
+                        <div class="form-group mt-16">
+                            <label>Discord Webhook (URL)</label>
+                            <input type="text" id="setting-discord" placeholder="https://discord.com/api/webhooks/..." class="custom-input">
+                        </div>
+                        
+                        <div class="alert alert-warning mt-16">
+                            <i data-lucide="alert-triangle"></i>
+                            Actuellement en mode Paper Trading.
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VIEW: BACKTEST -->
+            <div id="view-backtest" class="view-section">
+                <header class="top-bar glass-panel">
+                    <div class="title-area">
+                        <h2>Laboratoire & Backtesting</h2>
+                        <span class="subtitle text-muted">Testez sur des données historiques en quelques secondes.</span>
+                    </div>
+                </header>
+                <section class="settings-content grid-2-col mt-24">
+                    <div class="settings-card glass-panel">
+                        <h3><i data-lucide="play-circle"></i> Exécution</h3>
+                        <p class="text-muted mt-8">Exécutez la stratégie pour analyser ses performances brutes.</p>
+                        <button id="btn-run-backtest" class="btn primary mt-16 w-100"><i data-lucide="zap"></i> Lancer la Simulation</button>
+                    </div>
+                    <div class="settings-card glass-panel">
+                        <h3><i data-lucide="bar-chart-2"></i> Résultats</h3>
+                        <div id="backtest-results" class="mt-8">
+                            <p class="text-muted">Aucun test récent.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="static/js/app.js?v=5"></script>
+</body>
+</html>
